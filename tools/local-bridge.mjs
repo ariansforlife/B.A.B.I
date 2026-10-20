@@ -51,7 +51,7 @@ export function handler({devices=discoverDevices,run=executeRun}={}){
    if(path==='/runs'&&req.method==='POST'){
     const data=await json(req);
     if(!['playwright','maestro','appium'].includes(data.engine)||typeof data.script!=='string'||(data.deviceId!==undefined&&typeof data.deviceId!=='string'))return send(res,400,{error:'Unsupported run'});
-    if(!/^scripts\\/[a-zA-Z0-9_-]{1,100}\\.(spec\\.ts|spec\\.js|yaml)$/.test(data.script))return send(res,400,{error:'Only uploaded scripts may run'});
+    if(typeof data.script!=='string'||!data.script.startsWith('scripts/')||!/^scripts\/[a-zA-Z0-9_-]{1,100}\.(spec\.ts|spec\.js|yaml)$/.test(data.script))return send(res,400,{error:'Only uploaded scripts may run'});
     if(data.engine!=='playwright'){if(!data.deviceId)return send(res,400,{error:'Device required'});const inventory=await devices();if(!inventory.devices?.some(d=>d.id===data.deviceId&&['device','booted','online'].includes(String(d.state).toLowerCase())))return send(res,400,{error:'Device not available'});}
     const record=queue.submit({engine:data.engine,script:data.script,deviceId:data.deviceId||undefined});
     return send(res,202,{id:record.id,status:record.status});
