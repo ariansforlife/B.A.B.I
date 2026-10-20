@@ -62,7 +62,8 @@ export function handler({devices=discoverDevices,run=executeRun}={}){
    if(path==='/reports'&&req.method==='GET'){
     const directory=join(root,'runs');let ids=[];try{ids=await readdir(directory);}catch(e){if(e.code!=='ENOENT')throw e;}
     const reports=[];for(const id of ids.slice(-200)){if(!/^[a-f0-9-]{16,40}$/.test(id))continue;try{reports.push(JSON.parse(await readFile(join(directory,id,'result.json'),'utf8')));}catch{}}
-    return send(res,200,reports.reverse());
+    let historical=[];try{const names=await readdir(join(root,'job-history'));for(const name of names.slice(-200)){if(!/^[a-f0-9-]{16,40}\\.json$/.test(name))continue;try{historical.push(JSON.parse(await readFile(join(root,'job-history',name),'utf8')));}catch{}}}catch(e){if(e.code!=='ENOENT')throw e;}
+    const merged=new Map();for(const item of historical)merged.set(item.id,item);for(const item of reports)merged.set(item.id,item);return send(res,200,[...merged.values()].sort((a,b)=>String(b.createdAt||b.startedAt||'').localeCompare(String(a.createdAt||a.startedAt||''))).slice(0,200));
    }
    const cancel=path.match(/^\/runs\/([a-f0-9-]+)\/cancel$/);
    if(cancel&&req.method==='POST')return send(res,200,{cancelled:queue.cancel(cancel[1])});
