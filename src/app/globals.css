@@ -1,0 +1,7 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+body { background:#090d17; color:#e5e7eb; font-family:Arial,Helvetica,sans-serif; }
+input,textarea,select { background:#141d30; border:1px solid #334155; border-radius:8px; padding:10px; color:inherit; }
+button { border-radius:8px; padding:9px 14px; background:#2563eb; }
+button:disabled { opacity:.45; }
