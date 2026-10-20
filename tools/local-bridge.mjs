@@ -1,6 +1,6 @@
 import {createServer} from 'node:http';
 import {randomBytes} from 'node:crypto';
-import {mkdir,readFile,writeFile} from 'node:fs/promises';
+import {mkdir,readFile,writeFile,readdir} from 'node:fs/promises';
 import {resolve,join} from 'node:path';
 import {discoverDevices} from './device-discovery.mjs';
 import {executeRun} from './runner-cli.mjs';
@@ -37,8 +37,8 @@ export function handler({devices=discoverDevices,run=executeRun}={}){
    }
    if(path==='/scripts'&&req.method==='PUT'){
     const data=await json(req);
-    if(typeof data.id!=='string'||!/^[a-zA-Z0-9_-]{1,100}$/.test(data.id)||!['playwright','maestro'].includes(data.engine)||typeof data.content!=='string'||data.content.length>250000)return send(res,400,{error:'Invalid script'});
-    const extension=data.engine==='maestro'?'.yaml':'.spec.ts';
+    if(typeof data.id!=='string'||!/^[a-zA-Z0-9_-]{1,100}$/.test(data.id)||!['playwright','maestro','appium'].includes(data.engine)||typeof data.content!=='string'||data.content.length>250000)return send(res,400,{error:'Invalid script'});
+    const extension=data.engine==='maestro'?'.yaml':data.engine==='appium'?'.spec.js':'.spec.ts';
     const name=data.id+extension;
     await mkdir(join(root,'scripts'),{recursive:true});
     await writeFile(join(root,'scripts',name),data.content,{mode:0o600});
@@ -51,6 +51,11 @@ export function handler({devices=discoverDevices,run=executeRun}={}){
     return send(res,202,{id:record.id,status:record.status});
    }
    if(path==='/runs'&&req.method==='GET')return send(res,200,queue.list());
+   if(path==='/reports'&&req.method==='GET'){
+    const directory=join(root,'runs');let ids=[];try{ids=await readdir(directory);}catch(e){if(e.code!=='ENOENT')throw e;}
+    const reports=[];for(const id of ids.slice(-200)){if(!/^[a-f0-9-]{16,40}$/.test(id))continue;try{reports.push(JSON.parse(await readFile(join(directory,id,'result.json'),'utf8')));}catch{}}
+    return send(res,200,reports.reverse());
+   }
    const cancel=path.match(/^\/runs\/([a-f0-9-]+)\/cancel$/);
    if(cancel&&req.method==='POST')return send(res,200,{cancelled:queue.cancel(cancel[1])});
    return send(res,404,{error:'Not found'});
