@@ -4,6 +4,7 @@ import {mkdir,readFile,writeFile} from 'node:fs/promises';
 import {resolve,join} from 'node:path';
 import {discoverDevices} from './device-discovery.mjs';
 import {executeRun} from './runner-cli.mjs';
+import {JobQueue} from './job-queue.mjs';
 const root=resolve(process.env.BABI_WORKSPACE_DIR||'./babi-data');
 const token=process.env.BABI_RUNNER_TOKEN||randomBytes(24).toString('hex');
 const port=Number(process.env.BABI_RUNNER_PORT||4318);
@@ -12,6 +13,7 @@ const runs=new Map();
 function send(res,code,value){res.writeHead(code,{'Content-Type':'application/json','Cache-Control':'no-store'});res.end(JSON.stringify(value));}
 async function json(req){const parts=[];let n=0;for await(const part of req){n+=part.length;if(n>1000000)throw Error('Payload too large');parts.push(part);}return JSON.parse(Buffer.concat(parts).toString());}
 export function handler({devices=discoverDevices,run=executeRun}={}){
+ const queue=new JobQueue(async(job,signal)=>run({engine:job.engine,script:job.script,deviceId:job.deviceId,approved:true,signal}),{concurrency:2,onUpdate:record=>runs.set(record.id,record)});
  return async(req,res)=>{
   const origin=req.headers.origin;
   if(origin&&!allowed.has(origin))return send(res,403,{error:'Origin not allowed'});
@@ -44,14 +46,13 @@ export function handler({devices=discoverDevices,run=executeRun}={}){
    }
    if(path==='/runs'&&req.method==='POST'){
     const data=await json(req);
-    if(!['playwright','maestro'].includes(data.engine)||typeof data.script!=='string')return send(res,400,{error:'Unsupported run'});
-    const id=randomBytes(16).toString('hex');
-    const record={id,status:'running',engine:data.engine,script:data.script,logs:[]};
-    runs.set(id,record);
-    void run({engine:data.engine,script:data.script,approved:true}).then(result=>Object.assign(record,result)).catch(e=>Object.assign(record,{status:'error',logs:[String(e)]}));
-    return send(res,202,{id});
+    if(!['playwright','maestro','appium'].includes(data.engine)||typeof data.script!=='string'||(data.deviceId!==undefined&&typeof data.deviceId!=='string'))return send(res,400,{error:'Unsupported run'});
+    const record=queue.submit({engine:data.engine,script:data.script,deviceId:data.deviceId||undefined});
+    return send(res,202,{id:record.id,status:record.status});
    }
-   if(path==='/runs'&&req.method==='GET')return send(res,200,[...runs.values()]);
+   if(path==='/runs'&&req.method==='GET')return send(res,200,queue.list());
+   const cancel=path.match(/^\/runs\/([a-f0-9-]+)\/cancel$/);
+   if(cancel&&req.method==='POST')return send(res,200,{cancelled:queue.cancel(cancel[1])});
    return send(res,404,{error:'Not found'});
   }catch(e){return send(res,400,{error:String(e.message||e)});}
  };
