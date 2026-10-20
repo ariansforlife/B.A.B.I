@@ -37,7 +37,7 @@ export async function executeRun({engine,script,deviceId,approved=false,timeoutM
   child.once('error',error=>{if(finished)return;finished=true;clearTimeout(timer);if(error.name==='AbortError')done(130);else reject(error);});
   child.once('close',code=>{if(finished)return;finished=true;clearTimeout(timer);done(timedOut?124:(code??1));});
  });
- const result={id,engine,script,status:exitCode===0?'passed':'failed',exitCode,startedAt,finishedAt:new Date().toISOString(),logs};
+ const result={id,engine,script,status:exitCode===0?'passed':exitCode===130?'cancelled':'failed',exitCode,startedAt,finishedAt:new Date().toISOString(),logs,artifacts:[]};
  const directory=join(ROOT,'runs',id);await mkdir(directory,{recursive:true});await writeFile(join(directory,'result.json'),JSON.stringify(result,null,2)+'\n',{mode:0o600});
  return result;
 }
