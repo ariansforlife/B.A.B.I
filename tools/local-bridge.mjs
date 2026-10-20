@@ -33,6 +33,15 @@ export function handler({devices=discoverDevices,run=executeRun}={}){
     await writeFile(join(root,'workspace.json'),JSON.stringify(data,null,2)+'\n',{mode:0o600});
     return send(res,200,{saved:true});
    }
+   if(path==='/scripts'&&req.method==='PUT'){
+    const data=await json(req);
+    if(typeof data.id!=='string'||!/^[a-zA-Z0-9_-]{1,100}$/.test(data.id)||!['playwright','maestro'].includes(data.engine)||typeof data.content!=='string'||data.content.length>250000)return send(res,400,{error:'Invalid script'});
+    const extension=data.engine==='maestro'?'.yaml':'.spec.ts';
+    const name=data.id+extension;
+    await mkdir(join(root,'scripts'),{recursive:true});
+    await writeFile(join(root,'scripts',name),data.content,{mode:0o600});
+    return send(res,200,{saved:true,path:'scripts/'+name});
+   }
    if(path==='/runs'&&req.method==='POST'){
     const data=await json(req);
     if(!['playwright','maestro'].includes(data.engine)||typeof data.script!=='string')return send(res,400,{error:'Unsupported run'});
