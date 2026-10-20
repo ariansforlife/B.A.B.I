@@ -1,7 +1,7 @@
 import {createServer} from 'node:http';
-import {randomBytes} from 'node:crypto';
-import {mkdir,readFile,writeFile,readdir} from 'node:fs/promises';
-import {resolve,join} from 'node:path';
+import {randomBytes,timingSafeEqual} from 'node:crypto';
+import {mkdir,readFile,writeFile,readdir,rename,stat} from 'node:fs/promises';
+import {resolve,join,basename} from 'node:path';
 import {discoverDevices} from './device-discovery.mjs';
 import {executeRun} from './runner-cli.mjs';
 import {JobQueue} from './job-queue.mjs';
@@ -10,16 +10,18 @@ const token=process.env.BABI_RUNNER_TOKEN||randomBytes(24).toString('hex');
 const port=Number(process.env.BABI_RUNNER_PORT||4318);
 const allowed=new Set(['http://localhost:3000','http://127.0.0.1:3000']);
 const runs=new Map();
+const secureToken=value=>typeof value==='string'&&Buffer.byteLength(value)===Buffer.byteLength(token)&&timingSafeEqual(Buffer.from(value),Buffer.from(token));
 function send(res,code,value){res.writeHead(code,{'Content-Type':'application/json','Cache-Control':'no-store'});res.end(JSON.stringify(value));}
 async function json(req){const parts=[];let n=0;for await(const part of req){n+=part.length;if(n>1000000)throw Error('Payload too large');parts.push(part);}return JSON.parse(Buffer.concat(parts).toString());}
 export function handler({devices=discoverDevices,run=executeRun}={}){
- const queue=new JobQueue(async(job,signal)=>run({engine:job.engine,script:job.script,deviceId:job.deviceId,approved:true,signal}),{concurrency:2,onUpdate:record=>runs.set(record.id,record)});
+ const persist=async(record)=>{await mkdir(join(root,'job-history'),{recursive:true});await writeFile(join(root,'job-history',record.id+'.json'),JSON.stringify(record,null,2),{mode:0o600});};
+ const queue=new JobQueue(async(job,signal)=>run({engine:job.engine,script:job.script,deviceId:job.deviceId,approved:true,signal}),{concurrency:2,onUpdate:record=>{runs.set(record.id,record);void persist(record).catch(console.error);}});
  return async(req,res)=>{
   const origin=req.headers.origin;
   if(origin&&!allowed.has(origin))return send(res,403,{error:'Origin not allowed'});
   if(origin){res.setHeader('Access-Control-Allow-Origin',origin);res.setHeader('Access-Control-Allow-Headers','Content-Type,X-BABI-Token');res.setHeader('Access-Control-Allow-Methods','GET,PUT,POST,OPTIONS');}
   if(req.method==='OPTIONS'){res.writeHead(204);res.end();return;}
-  if(req.headers['x-babi-token']!==token)return send(res,401,{error:'Unauthorized'});
+  if(!secureToken(req.headers['x-babi-token']))return send(res,401,{error:'Unauthorized'});
   try{
    const path=new URL(req.url,'http://localhost').pathname;
    if(path==='/health'&&req.method==='GET')return send(res,200,{ok:true});
@@ -32,7 +34,7 @@ export function handler({devices=discoverDevices,run=executeRun}={}){
     const data=await json(req);
     if(data?.schemaVersion!==1||!Array.isArray(data.projects))return send(res,400,{error:'Invalid workspace'});
     await mkdir(root,{recursive:true});
-    await writeFile(join(root,'workspace.json'),JSON.stringify(data,null,2)+'\n',{mode:0o600});
+    const temp=join(root,'workspace.'+randomBytes(8).toString('hex')+'.tmp');await writeFile(temp,JSON.stringify(data,null,2)+'\n',{mode:0o600});await rename(temp,join(root,'workspace.json'));
     return send(res,200,{saved:true});
    }
    if(path==='/scripts'&&req.method==='PUT'){
@@ -51,6 +53,12 @@ export function handler({devices=discoverDevices,run=executeRun}={}){
     return send(res,202,{id:record.id,status:record.status});
    }
    if(path==='/runs'&&req.method==='GET')return send(res,200,queue.list());
+   const artifact=path.match(/^\/artifacts\/([a-f0-9-]{16,40})\/([a-zA-Z0-9_.-]+)$/);
+   if(artifact&&req.method==='GET'){
+    const name=basename(artifact[2]);if(name!==artifact[2]||name==='result.json')return send(res,400,{error:'Invalid artifact'});
+    const file=join(root,'runs',artifact[1],name);const info=await stat(file);if(!info.isFile()||info.size>25*1024*1024)return send(res,400,{error:'Artifact unavailable'});
+    const bytes=await readFile(file);res.writeHead(200,{'Content-Type':'application/octet-stream','Content-Disposition':'attachment; filename="'+name+'"','Cache-Control':'no-store'});res.end(bytes);return;
+   }
    if(path==='/reports'&&req.method==='GET'){
     const directory=join(root,'runs');let ids=[];try{ids=await readdir(directory);}catch(e){if(e.code!=='ENOENT')throw e;}
     const reports=[];for(const id of ids.slice(-200)){if(!/^[a-f0-9-]{16,40}$/.test(id))continue;try{reports.push(JSON.parse(await readFile(join(directory,id,'result.json'),'utf8')));}catch{}}
