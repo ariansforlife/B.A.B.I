@@ -1,5 +1,5 @@
 import { spawn } from 'node:child_process';
-import { readFile,mkdir,writeFile,realpath,readdir,stat } from 'node:fs/promises';
+import { readFile,mkdir,writeFile,realpath,readdir,lstat } from 'node:fs/promises';
 import { resolve,relative,sep,join,basename } from 'node:path';
 import { randomUUID } from 'node:crypto';
 const ROOT=resolve(process.env.BABI_WORKSPACE_DIR||'./babi-data');
@@ -34,14 +34,16 @@ export async function executeRun({engine,script,deviceId,approved=false,timeoutM
   let timedOut=false;
   const terminate=()=>{if(process.platform!=='win32'&&child.pid){try{process.kill(-child.pid,'SIGTERM');}catch{child.kill('SIGTERM');}}else child.kill('SIGTERM');};
   const timer=setTimeout(()=>{timedOut=true;terminate();},timeoutMs);
-  const onAbort=()=>terminate();signal?.addEventListener('abort',onAbort,{once:true});
+  const force=()=>{if(process.platform!=='win32'&&child.pid){try{process.kill(-child.pid,'SIGKILL');}catch{}}else child.kill('SIGKILL');};
+  const hardTimer=setTimeout(force,timeoutMs+5000);
+  const onAbort=()=>{terminate();setTimeout(force,5000).unref();};signal?.addEventListener('abort',onAbort,{once:true});
   const collect=chunk=>{if(logs.join('').length<1024*1024)logs.push(String(chunk).slice(0,16384));};
   child.stdout?.on('data',collect);child.stderr?.on('data',collect);
-  child.once('error',error=>{if(finished)return;finished=true;clearTimeout(timer);signal?.removeEventListener('abort',onAbort);if(error.name==='AbortError')done(130);else reject(error);});
+  child.once('error',error=>{if(finished)return;finished=true;clearTimeout(timer);clearTimeout(hardTimer);signal?.removeEventListener('abort',onAbort);if(error.name==='AbortError')done(130);else reject(error);});
   child.once('close',code=>{if(finished)return;finished=true;clearTimeout(timer);signal?.removeEventListener('abort',onAbort);done(timedOut?124:(code??1));});
  });
- const artifacts=[];for(const name of await readdir(directory)){if(name==='result.json'||! /\\.(png|jpg|jpeg|webp|txt|json|html|xml)$/.test(name))continue;const file=join(directory,name);const info=await stat(file);if(info.isFile()&&info.size<=25*1024*1024)artifacts.push({name:basename(name),bytes:info.size});}
- const result={id,engine,script,status:exitCode===0?'passed':signal?.aborted?'cancelled':'failed',exitCode,startedAt,finishedAt:new Date().toISOString(),logs,artifacts};
+ const artifacts=[];for(const name of await readdir(directory)){if(name==='result.json'||! /\.(png|jpg|jpeg|webp|txt|json|html|xml)$/.test(name))continue;const file=join(directory,name);const info=await lstat(file);if(info.isFile()&&info.size<=25*1024*1024)artifacts.push({name:basename(name),bytes:info.size});}
+ const result={id,engine,script,status:signal?.aborted?'cancelled':exitCode===0?'passed':exitCode===124?'timed_out':'failed',exitCode,startedAt,finishedAt:new Date().toISOString(),logs,artifacts};
  await writeFile(join(directory,'output.log'),logs.join(''),{mode:0o600});await writeFile(join(directory,'result.json'),JSON.stringify(result,null,2)+'\n',{mode:0o600});
  return result;
 }
