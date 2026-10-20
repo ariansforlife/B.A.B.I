@@ -1,6 +1,6 @@
 import { spawn } from 'node:child_process';
-import { readFile,mkdir,writeFile,realpath } from 'node:fs/promises';
-import { resolve,relative,sep,join } from 'node:path';
+import { readFile,mkdir,writeFile,realpath,readdir,stat } from 'node:fs/promises';
+import { resolve,relative,sep,join,basename } from 'node:path';
 import { randomUUID } from 'node:crypto';
 const ROOT=resolve(process.env.BABI_WORKSPACE_DIR||'./babi-data');
 function within(root,path){const rel=relative(root,path);return rel!==''&&!rel.startsWith('..'+sep)&&rel!=='..'&&!resolve(path).startsWith('\\\\');}
@@ -27,18 +27,22 @@ export async function executeRun({engine,script,deviceId,approved=false,timeoutM
  await readFile(realScript);
  const {cmd,args}=commandFor(engine,realScript);
  const id=randomUUID(),startedAt=new Date().toISOString(),logs=[];
+ const directory=join(ROOT,'runs',id);await mkdir(directory,{recursive:true});
  const exitCode=await new Promise((done,reject)=>{
-  const child=spawnProcess(cmd,args,{cwd:ROOT,env:{...process.env,BABI_DEVICE_ID:deviceId||''},shell:false,stdio:['ignore','pipe','pipe'],signal});
+  const child=spawnProcess(cmd,args,{cwd:ROOT,env:{...process.env,BABI_DEVICE_ID:deviceId||'',BABI_ARTIFACT_DIR:directory},shell:false,stdio:['ignore','pipe','pipe'],detached:process.platform!=='win32'});
   let finished=false;
   let timedOut=false;
-  const timer=setTimeout(()=>{timedOut=true;child.kill('SIGTERM');},timeoutMs);
+  const terminate=()=>{if(process.platform!=='win32'&&child.pid){try{process.kill(-child.pid,'SIGTERM');}catch{child.kill('SIGTERM');}}else child.kill('SIGTERM');};
+  const timer=setTimeout(()=>{timedOut=true;terminate();},timeoutMs);
+  const onAbort=()=>terminate();signal?.addEventListener('abort',onAbort,{once:true});
   const collect=chunk=>{if(logs.join('').length<1024*1024)logs.push(String(chunk).slice(0,16384));};
   child.stdout?.on('data',collect);child.stderr?.on('data',collect);
-  child.once('error',error=>{if(finished)return;finished=true;clearTimeout(timer);if(error.name==='AbortError')done(130);else reject(error);});
-  child.once('close',code=>{if(finished)return;finished=true;clearTimeout(timer);done(timedOut?124:(code??1));});
+  child.once('error',error=>{if(finished)return;finished=true;clearTimeout(timer);signal?.removeEventListener('abort',onAbort);if(error.name==='AbortError')done(130);else reject(error);});
+  child.once('close',code=>{if(finished)return;finished=true;clearTimeout(timer);signal?.removeEventListener('abort',onAbort);done(timedOut?124:(code??1));});
  });
- const result={id,engine,script,status:exitCode===0?'passed':exitCode===130?'cancelled':'failed',exitCode,startedAt,finishedAt:new Date().toISOString(),logs,artifacts:[]};
- const directory=join(ROOT,'runs',id);await mkdir(directory,{recursive:true});await writeFile(join(directory,'result.json'),JSON.stringify(result,null,2)+'\n',{mode:0o600});
+ const artifacts=[];for(const name of await readdir(directory)){if(name==='result.json'||! /\\.(png|jpg|jpeg|webp|txt|json|html|xml)$/.test(name))continue;const file=join(directory,name);const info=await stat(file);if(info.isFile()&&info.size<=25*1024*1024)artifacts.push({name:basename(name),bytes:info.size});}
+ const result={id,engine,script,status:exitCode===0?'passed':signal?.aborted?'cancelled':'failed',exitCode,startedAt,finishedAt:new Date().toISOString(),logs,artifacts};
+ await writeFile(join(directory,'output.log'),logs.join(''),{mode:0o600});await writeFile(join(directory,'result.json'),JSON.stringify(result,null,2)+'\n',{mode:0o600});
  return result;
 }
 if(process.argv[1]&&import.meta.url===new URL('file://'+process.argv[1]).href){
