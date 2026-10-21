@@ -9,10 +9,12 @@ export type Scenario = {id:string;title:string;testCaseIds:string[];description?
 export type Feature = {id:string;name:string;scenarios:Scenario[];description?:string};
 export type ProjectEnvironment = {id:string;name:string;variables:Record<string,string>};
 export type ProjectDataset = {id:string;name:string;data:Record<string,string>};
-export type Release = {id:string;name:string;createdAt:string;features:Feature[];status:'draft'|'locked'};
+export type TestSuite = {id:string;projectId:string;name:string;type:'regression'|'smoke'|'custom';mandatory:boolean;testCaseIds:string[]};
+export type ReleaseSuite = {suiteId:string;name:string;type:TestSuite['type'];mandatory:boolean;testCases:MasterTestCase[]};
+export type Release = {id:string;name:string;createdAt:string;features:Feature[];testSuites?:ReleaseSuite[];status:'draft'|'locked'};
 export type Project = { id:string; name:string; target:Target; url?:string; cases:TestCase[]; platforms?:Target[]; testCaseIds?:string[]; features?:Feature[]; releases?:Release[]; activeReleaseId?:string; environments?:ProjectEnvironment[]; datasets?:ProjectDataset[] };
-export type Workspace = { schemaVersion:1; projects:Project[]; masterTestCases?:MasterTestCase[]; masterScripts?:MasterScript[]; scriptBindings?:ScriptBinding[];automationLibrary?:AutomationLibraryItem[] };
-export const emptyWorkspace = ():Workspace => ({schemaVersion:1,projects:[],masterTestCases:[],masterScripts:[],scriptBindings:[],automationLibrary:[]});
+export type Workspace = { schemaVersion:1; projects:Project[]; masterTestCases?:MasterTestCase[]; masterScripts?:MasterScript[]; scriptBindings?:ScriptBinding[];automationLibrary?:AutomationLibraryItem[];testSuites?:TestSuite[] };
+export const emptyWorkspace = ():Workspace => ({schemaVersion:1,projects:[],masterTestCases:[],masterScripts:[],scriptBindings:[],automationLibrary:[],testSuites:[]});
 export function parseWorkspace(input:string):Workspace {
  const data:unknown=JSON.parse(input);
  if(!data||typeof data!=='object'||!('schemaVersion' in data)||data.schemaVersion!==1||!('projects' in data)||!Array.isArray(data.projects))throw Error('Invalid workspace schema');
@@ -22,5 +24,6 @@ export function parseWorkspace(input:string):Workspace {
  if(w.masterScripts!==undefined&&(!Array.isArray(w.masterScripts)||w.masterScripts.some(s=>!s||typeof s.id!=='string'||typeof s.name!=='string'||typeof s.content!=='string'||!['playwright','appium','maestro'].includes(s.engine)||!['web','android','ios'].includes(s.platform))))throw Error('Invalid master scripts');
  if(w.automationLibrary!==undefined&&(!Array.isArray(w.automationLibrary)||w.automationLibrary.some(i=>!i||typeof i.id!=='string'||typeof i.name!=='string'||!['snippet','helper'].includes(i.kind)||!['playwright','appium','maestro'].includes(i.engine)||!['web','android','ios'].includes(i.platform)||typeof i.content!=='string')))throw Error('Invalid automation library');
  if(w.scriptBindings!==undefined&&(!Array.isArray(w.scriptBindings)||w.scriptBindings.some(b=>!b||typeof b.id!=='string'||typeof b.testCaseId!=='string'||typeof b.scriptId!=='string'||!['web','android','ios'].includes(b.platform))))throw Error('Invalid script bindings');
- return {...w,masterTestCases:w.masterTestCases??[],masterScripts:w.masterScripts??[],scriptBindings:w.scriptBindings??[],automationLibrary:w.automationLibrary??[]};
+ if(w.testSuites!==undefined&&(!Array.isArray(w.testSuites)||w.testSuites.some(s=>!s||typeof s.id!=='string'||typeof s.projectId!=='string'||typeof s.name!=='string'||!['regression','smoke','custom'].includes(s.type)||typeof s.mandatory!=='boolean'||!Array.isArray(s.testCaseIds)||s.testCaseIds.some(id=>typeof id!=='string'))))throw Error('Invalid test suites');
+ return {...w,testSuites:w.testSuites??[],masterTestCases:w.masterTestCases??[],masterScripts:w.masterScripts??[],scriptBindings:w.scriptBindings??[],automationLibrary:w.automationLibrary??[]};
 }
