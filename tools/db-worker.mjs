@@ -28,4 +28,4 @@ async function processJob(job){
  if(!results.length)throw Error('Execution snapshot has no tests');
  await post('/api/v1/worker/complete',{id:job.id,results});
 }
-for(;;){try{const job=await post('/api/v1/worker/claim',{});if(job){try{await processJob(job)}catch(error){console.error('Job failed:',job.id,error)}}}catch(error){console.error('Worker poll:',error)}await new Promise(resolve=>setTimeout(resolve,interval))}
+for(;;){try{const job=await post('/api/v1/worker/claim',{});if(job){try{await processJob(job)}catch(error){console.error('Job failed:',job.id,error);try{await post('/api/v1/worker/fail',{id:job.id,error:String(error)})}catch(reportError){console.error('Failed to report job failure:',reportError)}}}}catch(error){console.error('Worker poll:',error)}await new Promise(resolve=>setTimeout(resolve,interval))}
