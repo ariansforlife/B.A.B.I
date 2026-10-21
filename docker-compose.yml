@@ -21,6 +21,7 @@ services:
     environment:
       DATABASE_URL: postgres://${POSTGRES_USER:-babi}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB:-babi}?sslmode=disable
       API_ADDR: :8080
+      BABI_WORKER_TOKEN: ${BABI_WORKER_TOKEN:?Set BABI_WORKER_TOKEN in .env}
     ports: ["127.0.0.1:8080:8080"]
     depends_on:
       db: {condition: service_healthy}
