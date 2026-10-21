@@ -34,6 +34,15 @@ func executionsHandler(db *pgxpool.Pool) http.HandlerFunc {
    return
   }
   if r.Method!=http.MethodGet {http.Error(w,"method not allowed",405);return}
+  if id:=r.URL.Query().Get("id");id!=""{
+   rows,err:=db.Query(r.Context(),`SELECT test_case_id,status,duration_ms,logs,artifacts FROM execution_job_results WHERE execution_id=$1::uuid ORDER BY test_case_id`,id)
+   if err!=nil{http.Error(w,"results unavailable",500);return};defer rows.Close()
+   type result struct{TestCaseID string `json:"testCaseId"`;Status string `json:"status"`;DurationMs int64 `json:"durationMs"`;Logs json.RawMessage `json:"logs"`;Artifacts json.RawMessage `json:"artifacts"`}
+   out:=make([]result,0)
+   for rows.Next(){var v result;if rows.Scan(&v.TestCaseID,&v.Status,&v.DurationMs,&v.Logs,&v.Artifacts)!=nil{http.Error(w,"scan failed",500);return};out=append(out,v)}
+   if rows.Err()!=nil{http.Error(w,"results query failed",500);return}
+   _=json.NewEncoder(w).Encode(out);return
+  }
   rows,err:=db.Query(r.Context(),`SELECT id::text,project_id,release_id,scope,engine,status,created_at::text FROM execution_jobs ORDER BY created_at DESC LIMIT 100`)
   if err!=nil {http.Error(w,"database query failed",500);return}
   defer rows.Close()
