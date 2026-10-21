@@ -9,6 +9,7 @@
     "typecheck": "tsc --noEmit",
     "test": "node --test tests/*.test.mjs",
     "runner": "node tools/local-bridge.mjs",
+    "worker": "node tools/db-worker.mjs",
     "mcp": "node tools/mcp-server.mjs"
   },
   "dependencies": {
