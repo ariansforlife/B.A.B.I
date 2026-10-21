@@ -121,3 +121,51 @@ pre{background:#0a1020;border:1px solid #222d43;border-radius:10px;padding:12px;
 .release-feature-picker{display:flex;flex-direction:column;gap:12px;border:1px solid #475569;border-radius:12px;padding:16px}.release-feature-picker legend{font-weight:700;padding:0 8px}.right-drawer .release-feature-picker label{display:flex;flex-direction:row;align-items:center;gap:12px;font-weight:500}.right-drawer .release-feature-picker input[type=checkbox]{width:18px;height:18px;flex-shrink:0}.release-feature-picker small{color:#94a3b8}
 
 .nav-group{border-bottom:1px solid #26354b;margin:10px 0;padding-bottom:10px}.nav-group-toggle{width:100%;display:flex;justify-content:space-between;align-items:center;padding:10px 14px;color:#94a3b8;font-size:12px;font-weight:700;letter-spacing:.09em;text-transform:uppercase}.nav-group-toggle:hover{color:#fff}.saas-nav-link.master-child{padding-left:26px;font-size:13px}
+
+
+/* B.A.B.I workspace theme — space ranger palette, restrained enterprise surfaces */
+:root{color-scheme:dark;--ui-bg:#0c1215;--ui-sidebar:#10191b;--ui-surface:#172124;--ui-raised:#1d2b2d;--ui-line:#304043;--ui-text:#f1f7f4;--ui-muted:#a4b6af;--ui-green:#78c845;--ui-green-strong:#93d85c;--ui-purple:#8560c7;--ui-purple-muted:#3c3154}
+body{background:var(--ui-bg);color:var(--ui-text)}
+.saas-nav{background:var(--ui-sidebar);border-right-color:var(--ui-line)}
+.saas-topbar{background:#111b1d;border-bottom-color:var(--ui-line)}
+.panel,.project-metrics>div,.project-shortcut,.project-choice-card,.project-home-connect,.project-welcome,.management-journey,.library-insert,.project-runner-strip,.project-create,.feature-card{background:var(--ui-surface);border-color:var(--ui-line);box-shadow:none}
+.project-welcome{background:linear-gradient(115deg,#1b3026,#202630)}
+.brand-mark,.project-choice-icon{background:var(--ui-green);color:#102016;box-shadow:none}
+.saas-nav-link{color:var(--ui-muted);border-radius:7px}
+.saas-nav-link:hover,.sidebar-list button:hover{background:#20322b;border-color:#365642}
+.saas-nav-link.selected,.sidebar-list button.active{background:#223b2c;color:#eaffdc;border-color:#426c42}
+.saas-nav-caption,.dashboard-kicker,.section-caption{color:#9fcf86}
+button{background:var(--ui-green);color:#142118;border:1px solid #6bad43;border-radius:7px;box-shadow:none}
+button:hover:not(:disabled){background:var(--ui-green-strong);border-color:#b1ed86;transform:none}
+button:focus-visible,input:focus-visible,textarea:focus-visible,select:focus-visible{outline-color:var(--ui-purple)}
+.saas-nav-link,.project-back,.project-breadcrumb-button,.nav-group-toggle,.saas-top-actions button,.project-runner-strip button,.sidebar-list button,.management-steps button,.library-insert-list button{background:transparent;color:var(--ui-text);border-color:transparent}
+input,textarea,select,.right-drawer input,.right-drawer textarea{background:#111b1d;border:1px solid var(--ui-line);color:var(--ui-text);border-radius:7px}
+pre,.editor-wrap{background:#0f191b;border-color:var(--ui-line)}
+.right-drawer{background:#142023;color:var(--ui-text)}
+.drawer-overlay{background:#050a0cba}
+.status-pill.online{background:#213b2a;color:#a9ee88;border-color:#426b43}
+.activity-tag,.project-platform-tags span{background:#332b47;border-color:#594679;color:#d7c1ff}
+.project-shortcut-icon{background:#263a2c;color:#b6e79d}
+.project-choice-card:hover,.project-shortcut:hover{background:#21332a;border-color:#6cad54;transform:none}
+.ui-surface{background:var(--ui-surface);border:1px solid var(--ui-line);border-radius:9px;padding:18px;min-width:0}
+.ui-section-header{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:16px}
+.ui-section-header h2{font-size:15px;font-weight:650;letter-spacing:-.02em}
+.ui-section-header p{font-size:12px;color:var(--ui-muted);margin-top:4px}
+.ui-button{font-size:12px;font-weight:600;padding:8px 12px;min-height:34px}
+.ui-button-secondary{background:#26352f;color:#e4f5e9;border-color:#40594a}
+.ui-button-ghost{background:transparent;color:var(--ui-muted);border-color:transparent}
+.ui-button-danger{background:#542c38;color:#ffe5e9;border-color:#7b3c4a}
+.ui-status{display:inline-flex;align-items:center;gap:7px;border-radius:5px;padding:4px 7px;font-size:11px;text-transform:capitalize;background:#263133;color:#bacac4}
+.ui-status-dot{width:6px;height:6px;background:currentColor;border-radius:50%}
+.ui-status-success{background:#243e2b;color:#b5ee9a}
+.ui-status-danger{background:#452c38;color:#ffc0ca}
+.ui-status-progress{background:#382f51;color:#d2b9ff}
+.ui-empty{padding:30px 16px;text-align:center;border:1px dashed var(--ui-line);border-radius:8px;color:var(--ui-muted)}
+.ui-empty strong{display:block;color:var(--ui-text);font-size:13px}
+.ui-empty p{font-size:12px;margin:6px 0 12px}
+.ui-table-scroll{width:100%;overflow-x:auto;border:1px solid var(--ui-line);border-radius:8px}
+.ui-table{width:100%;border-collapse:collapse;font-size:12px;text-align:left}
+.ui-table th{background:#1c2a2a;color:var(--ui-muted);font-size:11px;font-weight:600;padding:11px 13px}
+.ui-table td{padding:12px 13px;border-top:1px solid var(--ui-line)}
+.ui-table tbody tr:hover{background:#20302d}
+@media(max-width:700px){.ui-surface{padding:14px}.ui-section-header{align-items:flex-start;flex-wrap:wrap}}
