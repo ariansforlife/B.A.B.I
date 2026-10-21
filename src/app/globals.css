@@ -82,3 +82,5 @@ pre{background:#0a1020;border:1px solid #222d43;border-radius:10px;padding:12px;
 .master-layout{display:grid;grid-template-columns:minmax(180px,260px) minmax(0,1fr);gap:18px}.master-layout .sidebar-list{margin-top:0}.master-editor{min-width:0}.master-editor textarea{min-height:100px}@media(max-width:700px){.master-layout{grid-template-columns:1fr}}
 
 .feature-card{border:1px solid #34425e;border-radius:12px;padding:15px;margin-top:12px;background:#111d32}.scenario-card{border:1px solid #293954;border-radius:10px;padding:14px;margin:12px 0 0 16px;background:#0c1628}.testcase-check{display:inline-flex;align-items:center;gap:8px;border:1px solid #34425e;border-radius:9px;padding:8px 10px;font-size:12px;cursor:pointer}.testcase-check input{min-width:auto;accent-color:#6680ed}
+
+.inspector-results{max-height:380px;overflow:auto}.inspector-element{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px;border-bottom:1px solid #34425e}.inspector-element p{overflow-wrap:anywhere}
