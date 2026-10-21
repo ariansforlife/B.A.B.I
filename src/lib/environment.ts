@@ -21,7 +21,7 @@ export function resolveEnvironment(
    case 'secret':if(!(entry.secretId in secrets))throw Error('Secret not available: '+key);value=secrets[entry.secretId];break;
    case 'file':if(!(entry.fileId in files))throw Error('File not available: '+key);value=files[entry.fileId];break;
    case 'reference':{
-    const match=/^\\{\\{([A-Za-z0-9_.-]+)\\}\\}$/.exec(entry.expression.trim());
+    const match=new RegExp("^\\{\\{([A-Za-z0-9_.-]+)\\}\\}$").exec(entry.expression.trim());
     if(!match)throw Error('Invalid reference expression: '+key);
     value=read(match[1]);break;
    }
