@@ -16,6 +16,7 @@ async function processJob(job){
   const engine=test.engine;
   const extension=engine==='maestro'?'.yaml':engine==='appium'?'.spec.js':'.spec.ts';
   if(!/^[a-zA-Z0-9_-]{1,100}$/.test(script)||!['maestro','appium','playwright'].includes(engine)||engine!==job.engine)throw Error('Invalid script metadata');
+  if(typeof test.content!=='string'||test.content.length>250000||!test.testCaseId)throw Error('Invalid test script payload');
   const path='scripts/'+script+extension;
   await mkdir(join(root,'scripts'),{recursive:true});
   await writeFile(join(root,path),test.content,{mode:0o600});
