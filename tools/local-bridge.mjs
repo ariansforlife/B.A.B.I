@@ -18,7 +18,7 @@ export function handler({devices=discoverDevices,run=executeRun}={}){
  const persist=async(record)=>{await mkdir(join(root,'job-history'),{recursive:true});await writeFile(join(root,'job-history',record.id+'.json'),JSON.stringify(record,null,2),{mode:0o600});};
  const queue=new JobQueue(async(job,signal)=>run({engine:job.engine,script:job.script,deviceId:job.deviceId,approved:true,signal}),{concurrency:2,onUpdate:record=>{runs.set(record.id,record);void persist(record).catch(console.error);}});
  return async(req,res)=>{
-  if(req.headers.host){const host=String(req.headers.host).split(':')[0];if(!['localhost','127.0.0.1'].includes(host))return send(res,403,{error:'Loopback host required'});}
+  if(!req.headers.host)return send(res,403,{error:'Loopback host required'});if(req.headers.host){const host=String(req.headers.host).split(':')[0];if(!['localhost','127.0.0.1'].includes(host))return send(res,403,{error:'Loopback host required'});}
   const origin=req.headers.origin;
   if(origin&&!allowed.has(origin))return send(res,403,{error:'Origin not allowed'});
   if(origin){res.setHeader('Access-Control-Allow-Origin',origin);res.setHeader('Access-Control-Allow-Headers','Content-Type,X-BABI-Token');res.setHeader('Access-Control-Allow-Methods','GET,PUT,POST,OPTIONS');}
@@ -60,7 +60,7 @@ export function handler({devices=discoverDevices,run=executeRun}={}){
    const artifact=path.match(/^\/artifacts\/([a-f0-9-]{16,40})\/([a-zA-Z0-9_.-]+)$/);
    if(artifact&&req.method==='GET'){
     const name=basename(artifact[2]);if(name!==artifact[2]||name==='result.json')return send(res,400,{error:'Invalid artifact'});
-    const file=join(root,'runs',artifact[1],name);const info=await lstat(file);if(!info.isFile()||info.size>25*1024*1024)return send(res,400,{error:'Artifact unavailable'});
+    const file=join(root,'runs',artifact[1],name);const info=await lstat(file);if(info.isSymbolicLink()||!info.isFile()||info.size>25*1024*1024)return send(res,400,{error:'Artifact unavailable'});
     const bytes=await readFile(file);res.writeHead(200,{'Content-Type':'application/octet-stream','Content-Disposition':'attachment; filename="'+name+'"','Cache-Control':'no-store'});res.end(bytes);return;
    }
    if(path==='/reports'&&req.method==='GET'){
