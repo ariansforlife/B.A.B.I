@@ -3,6 +3,7 @@ import {randomBytes,timingSafeEqual} from 'node:crypto';
 import {mkdir,readFile,writeFile,readdir,rename,lstat} from 'node:fs/promises';
 import {resolve,join,basename} from 'node:path';
 import {discoverDevices} from './device-discovery.mjs';
+import {inspectAndroid} from './element-inspector.mjs';
 import {executeRun} from './runner-cli.mjs';
 import {JobQueue} from './job-queue.mjs';
 const root=resolve(process.env.BABI_WORKSPACE_DIR||'./babi-data');
@@ -14,7 +15,7 @@ const isLoopback=host=>['127.0.0.1','localhost','[::1]'].includes(String(host||'
 const secureToken=value=>typeof value==='string'&&Buffer.byteLength(value)===Buffer.byteLength(token)&&timingSafeEqual(Buffer.from(value),Buffer.from(token));
 function send(res,code,value){res.writeHead(code,{'Content-Type':'application/json','Cache-Control':'no-store'});res.end(JSON.stringify(value));}
 async function json(req){const parts=[];let n=0;for await(const part of req){n+=part.length;if(n>1000000)throw Error('Payload too large');parts.push(part);}return JSON.parse(Buffer.concat(parts).toString());}
-export function handler({devices=discoverDevices,run=executeRun}={}){
+export function handler({devices=discoverDevices,run=executeRun,inspect=inspectAndroid}={}){
  const persist=async(record)=>{await mkdir(join(root,'job-history'),{recursive:true});await writeFile(join(root,'job-history',record.id+'.json'),JSON.stringify(record,null,2),{mode:0o600});};
  const queue=new JobQueue(async(job,signal)=>run({engine:job.engine,script:job.script,deviceId:job.deviceId,approved:true,signal}),{concurrency:2,onUpdate:record=>{runs.set(record.id,record);void persist(record).catch(console.error);}});
  return async(req,res)=>{
@@ -28,6 +29,13 @@ export function handler({devices=discoverDevices,run=executeRun}={}){
    const path=new URL(req.url,'http://localhost').pathname;
    if(path==='/health'&&req.method==='GET')return send(res,200,{ok:true});
    if(path==='/devices'&&req.method==='GET')return send(res,200,await devices());
+   if(path==='/inspect'&&req.method==='POST'){
+    const data=await json(req);if(typeof data?.deviceId!=='string')return send(res,400,{error:'Device required'});
+    const inventory=await devices();const device=inventory.devices?.find(d=>d.id===data.deviceId&&d.state==='available');
+    if(!device)return send(res,400,{error:'Device unavailable'});
+    if(device.platform!=='android')return send(res,400,{error:'Live inspection currently supports Android only'});
+    return send(res,200,await inspect(device.id));
+   }
    if(path==='/workspace'&&req.method==='GET'){
     try{return send(res,200,JSON.parse(await readFile(join(root,'workspace.json'),'utf8')));}
     catch(e){if(e.code==='ENOENT')return send(res,200,{schemaVersion:1,projects:[]});throw e;}
