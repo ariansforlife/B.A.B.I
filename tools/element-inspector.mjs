@@ -18,7 +18,7 @@ export function parseHierarchy(xml){
  return elements;
 }
 export async function inspectAndroid(deviceId,{run=exec}={}){
- if(typeof deviceId!=='string'||!/^[\w.:-]{1,150}$/.test(deviceId))throw Error('Invalid device ID');
+ if(typeof deviceId!=='string'||!/^[A-Za-z0-9_][\w.:-]{0,149}$/.test(deviceId))throw Error('Invalid device ID');
  const {stdout}=await run('adb',['-s',deviceId,'exec-out','uiautomator','dump','/dev/tty'],{timeout:20000,maxBuffer:5*1024*1024});
  const xml=String(stdout).slice(String(stdout).indexOf('<?xml')>=0?String(stdout).indexOf('<?xml'):0);
  if(!xml.includes('<hierarchy'))throw Error('Unable to retrieve UI hierarchy; unlock device and open the app');
