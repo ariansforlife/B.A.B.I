@@ -19,6 +19,8 @@ func main() {
  defer db.Close()
  if err=db.Ping(ctx);err!=nil {log.Fatal(err)}
  mux:=http.NewServeMux()
+ mux.HandleFunc("/api/v1/workspace",workspaceHandler(db))
+ mux.HandleFunc("/api/v1/executions",executionsHandler(db))
  mux.HandleFunc("GET /health",func(w http.ResponseWriter,r *http.Request){
   ctx,cancel:=context.WithTimeout(r.Context(),3*time.Second)
   defer cancel()
