@@ -4,8 +4,10 @@ import {join} from 'node:path';
 const endpoint=process.env.BABI_API_URL||'http://127.0.0.1:8080';
 const root=process.env.BABI_WORKSPACE_DIR||'./babi-data';
 const interval=Number(process.env.BABI_WORKER_POLL_MS||3000);
+const token=process.env.BABI_WORKER_TOKEN;
+if(!token||token.length<32)throw Error('Set BABI_WORKER_TOKEN to a secret of at least 32 characters');
 if(!endpoint.startsWith('http://127.0.0.1:')&&!endpoint.startsWith('http://localhost:'))throw Error('Worker API must be loopback');
-async function post(path,payload){const r=await fetch(endpoint+path,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});if(r.status===204)return null;if(!r.ok)throw Error(path+': '+r.status+' '+await r.text());return r.json()}
+async function post(path,payload){const r=await fetch(endpoint+path,{method:'POST',headers:{'Content-Type':'application/json','X-BABI-Worker-Token':token},body:JSON.stringify(payload)});if(r.status===204)return null;if(!r.ok)throw Error(path+': '+r.status+' '+await r.text());return r.json()}
 async function processJob(job){
  const tests=job.snapshot?.tests||[];
  const results=[];
