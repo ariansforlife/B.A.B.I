@@ -52,6 +52,7 @@ export function handler({devices=discoverDevices,run=executeRun}={}){
     const data=await json(req);
     if(!['playwright','maestro','appium'].includes(data.engine)||typeof data.script!=='string'||(data.deviceId!==undefined&&typeof data.deviceId!=='string'))return send(res,400,{error:'Unsupported run'});
     if(typeof data.script!=='string'||!data.script.startsWith('scripts/')||!/^scripts\/[a-zA-Z0-9_-]{1,100}\.(spec\.ts|spec\.js|yaml)$/.test(data.script))return send(res,400,{error:'Only uploaded scripts may run'});
+    if((data.engine==='playwright'&&!data.script.endsWith('.spec.ts'))||(data.engine==='maestro'&&!data.script.endsWith('.yaml'))||(data.engine==='appium'&&!data.script.endsWith('.spec.js')))return send(res,400,{error:'Script extension does not match engine'});
     if(data.engine!=='playwright'){if(!data.deviceId)return send(res,400,{error:'Device required'});const inventory=await devices();if(!inventory.devices?.some(d=>d.id===data.deviceId&&['available','device','booted','online'].includes(String(d.state).toLowerCase())))return send(res,400,{error:'Device not available'});}
     const record=queue.submit({engine:data.engine,script:data.script,deviceId:data.deviceId||undefined});
     return send(res,202,{id:record.id,status:record.status});
@@ -59,7 +60,7 @@ export function handler({devices=discoverDevices,run=executeRun}={}){
    if(path==='/runs'&&req.method==='GET')return send(res,200,queue.list());
    const artifact=path.match(/^\/artifacts\/([a-f0-9-]{16,40})\/([a-zA-Z0-9_.-]+)$/);
    if(artifact&&req.method==='GET'){
-    const name=basename(artifact[2]);if(name!==artifact[2]||name==='result.json')return send(res,400,{error:'Invalid artifact'});
+    const name=basename(artifact[2]);if(name!==artifact[2]||name==='result.json'||name==='.'||name==='..')return send(res,400,{error:'Invalid artifact'});
     const file=join(root,'runs',artifact[1],name);const info=await lstat(file);if(info.isSymbolicLink()||!info.isFile()||info.size>25*1024*1024)return send(res,400,{error:'Artifact unavailable'});
     const bytes=await readFile(file);res.writeHead(200,{'Content-Type':'application/octet-stream','Content-Disposition':'attachment; filename="'+name+'"','Cache-Control':'no-store'});res.end(bytes);return;
    }
