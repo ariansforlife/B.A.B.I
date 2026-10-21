@@ -3,10 +3,15 @@ package main
 import (
  "encoding/json"
  "net/http"
+ "os"
+ "crypto/subtle"
  "github.com/jackc/pgx/v5/pgxpool"
 )
 func workerHandler(db *pgxpool.Pool)http.HandlerFunc{
  return func(w http.ResponseWriter,r *http.Request){
+  secret:=os.Getenv("BABI_WORKER_TOKEN")
+  provided:=r.Header.Get("X-BABI-Worker-Token")
+  if len(secret)<32||subtle.ConstantTimeCompare([]byte(secret),[]byte(provided))!=1{http.Error(w,"unauthorized",http.StatusUnauthorized);return}
   w.Header().Set("Content-Type","application/json")
   if r.Method==http.MethodPost&&r.URL.Path=="/api/v1/worker/claim"{
    tx,err:=db.Begin(r.Context());if err!=nil{http.Error(w,"db error",500);return};defer tx.Rollback(r.Context())
