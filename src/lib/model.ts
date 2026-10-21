@@ -7,7 +7,17 @@ export type AutomationLibraryItem = {id:string;name:string;kind:'snippet'|'helpe
 export type ScriptBinding = {id:string;testCaseId:string;scriptId:string;platform:Target};
 export type Scenario = {id:string;title:string;testCaseIds:string[];description?:string};
 export type Feature = {id:string;name:string;scenarios:Scenario[];description?:string};
-export type ProjectEnvironment = {id:string;name:string;variables:Record<string,string>};
+export type EnvironmentValue =
+ | {type:'string';value:string}
+ | {type:'number';value:number}
+ | {type:'boolean';value:boolean}
+ | {type:'json';value:Record<string,unknown>}
+ | {type:'array';value:unknown[]}
+ | {type:'enum';value:string;options:string[]}
+ | {type:'secret';secretId:string}
+ | {type:'file';fileId:string}
+ | {type:'reference';expression:string};
+export type ProjectEnvironment = {id:string;name:string;variables:Record<string,EnvironmentValue>};
 export type ProjectDataset = {id:string;name:string;data:Record<string,string>};
 export type Release = {id:string;name:string;createdAt:string;features:Feature[];status:'draft'|'locked'};
 export type Project = { id:string; name:string; target:Target; url?:string; cases:TestCase[]; platforms?:Target[]; testCaseIds?:string[]; features?:Feature[]; releases?:Release[]; activeReleaseId?:string; environments?:ProjectEnvironment[]; datasets?:ProjectDataset[] };
@@ -17,10 +27,28 @@ export function parseWorkspace(input:string):Workspace {
  const data:unknown=JSON.parse(input);
  if(!data||typeof data!=='object'||!('schemaVersion' in data)||data.schemaVersion!==1||!('projects' in data)||!Array.isArray(data.projects))throw Error('Invalid workspace schema');
  const w=data as Workspace;
- for(const p of w.projects){if(!p||typeof p.id!=='string'||typeof p.name!=='string'||!['web','android','ios'].includes(p.target)||!Array.isArray(p.cases))throw Error('Invalid project');if(p.platforms&&(!Array.isArray(p.platforms)||p.platforms.some(t=>!['web','android','ios'].includes(t))))throw Error('Invalid project platforms');if(p.environments!==undefined&&(!Array.isArray(p.environments)||p.environments.some(e=>!e||typeof e.id!=='string'||typeof e.name!=='string'||!e.variables||typeof e.variables!=='object'||Array.isArray(e.variables)||Object.values(e.variables).some(v=>typeof v!=='string'))))throw Error('Invalid project environments');if(p.datasets!==undefined&&(!Array.isArray(p.datasets)||p.datasets.some(d=>!d||typeof d.id!=='string'||typeof d.name!=='string'||!d.data||typeof d.data!=='object'||Array.isArray(d.data)||Object.values(d.data).some(v=>typeof v!=='string'))))throw Error('Invalid project datasets');if(p.releases!==undefined){if(!Array.isArray(p.releases))throw Error('Invalid releases');for(const release of p.releases){if(!release||typeof release.id!=='string'||typeof release.name!=='string'||!Array.isArray(release.features)||!['draft','locked'].includes(release.status))throw Error('Invalid release');}}if(p.features!==undefined){if(!Array.isArray(p.features))throw Error('Invalid features');for(const feature of p.features){if(!feature||typeof feature.id!=='string'||typeof feature.name!=='string'||!Array.isArray(feature.scenarios))throw Error('Invalid feature');for(const scenario of feature.scenarios){if(!scenario||typeof scenario.id!=='string'||typeof scenario.title!=='string'||!Array.isArray(scenario.testCaseIds)||scenario.testCaseIds.some(id=>typeof id!=='string'))throw Error('Invalid scenario');}}}for(const c of p.cases){if(!c||typeof c.id!=='string'||typeof c.title!=='string'||typeof c.script!=='string'||!['playwright','appium','maestro'].includes(c.engine))throw Error('Invalid test case');}}
+ for(const p of w.projects){for(const e of p.environments||[]){if(e.variables&&typeof e.variables==='object'){for(const [key,value] of Object.entries(e.variables)){if(typeof value==='string')(e.variables as Record<string,unknown>)[key]={type:'string',value};}}}}
+ for(const p of w.projects){if(!p||typeof p.id!=='string'||typeof p.name!=='string'||!['web','android','ios'].includes(p.target)||!Array.isArray(p.cases))throw Error('Invalid project');if(p.platforms&&(!Array.isArray(p.platforms)||p.platforms.some(t=>!['web','android','ios'].includes(t))))throw Error('Invalid project platforms');if(p.environments!==undefined&&(!Array.isArray(p.environments)||p.environments.some(e=>!e||typeof e.id!=='string'||typeof e.name!=='string'||!e.variables||typeof e.variables!=='object'||Array.isArray(e.variables)||Object.values(e.variables).some(v=>!isEnvironmentValue(v)))))throw Error('Invalid project environments');if(p.datasets!==undefined&&(!Array.isArray(p.datasets)||p.datasets.some(d=>!d||typeof d.id!=='string'||typeof d.name!=='string'||!d.data||typeof d.data!=='object'||Array.isArray(d.data)||Object.values(d.data).some(v=>typeof v!=='string'))))throw Error('Invalid project datasets');if(p.releases!==undefined){if(!Array.isArray(p.releases))throw Error('Invalid releases');for(const release of p.releases){if(!release||typeof release.id!=='string'||typeof release.name!=='string'||!Array.isArray(release.features)||!['draft','locked'].includes(release.status))throw Error('Invalid release');}}if(p.features!==undefined){if(!Array.isArray(p.features))throw Error('Invalid features');for(const feature of p.features){if(!feature||typeof feature.id!=='string'||typeof feature.name!=='string'||!Array.isArray(feature.scenarios))throw Error('Invalid feature');for(const scenario of feature.scenarios){if(!scenario||typeof scenario.id!=='string'||typeof scenario.title!=='string'||!Array.isArray(scenario.testCaseIds)||scenario.testCaseIds.some(id=>typeof id!=='string'))throw Error('Invalid scenario');}}}for(const c of p.cases){if(!c||typeof c.id!=='string'||typeof c.title!=='string'||typeof c.script!=='string'||!['playwright','appium','maestro'].includes(c.engine))throw Error('Invalid test case');}}
  if(w.masterTestCases!==undefined&&(!Array.isArray(w.masterTestCases)||w.masterTestCases.some(c=>!c||typeof c.id!=='string'||typeof c.title!=='string'||!Array.isArray(c.steps)||typeof c.expected!=='string')))throw Error('Invalid master test cases');
  if(w.masterScripts!==undefined&&(!Array.isArray(w.masterScripts)||w.masterScripts.some(s=>!s||typeof s.id!=='string'||typeof s.name!=='string'||typeof s.content!=='string'||!['playwright','appium','maestro'].includes(s.engine)||!['web','android','ios'].includes(s.platform))))throw Error('Invalid master scripts');
  if(w.automationLibrary!==undefined&&(!Array.isArray(w.automationLibrary)||w.automationLibrary.some(i=>!i||typeof i.id!=='string'||typeof i.name!=='string'||!['snippet','helper'].includes(i.kind)||!['playwright','appium','maestro'].includes(i.engine)||!['web','android','ios'].includes(i.platform)||typeof i.content!=='string')))throw Error('Invalid automation library');
  if(w.scriptBindings!==undefined&&(!Array.isArray(w.scriptBindings)||w.scriptBindings.some(b=>!b||typeof b.id!=='string'||typeof b.testCaseId!=='string'||typeof b.scriptId!=='string'||!['web','android','ios'].includes(b.platform))))throw Error('Invalid script bindings');
  return {...w,masterTestCases:w.masterTestCases??[],masterScripts:w.masterScripts??[],scriptBindings:w.scriptBindings??[],automationLibrary:w.automationLibrary??[]};
+}
+
+export function isEnvironmentValue(v:unknown):v is EnvironmentValue {
+ if(!v||typeof v!=='object'||Array.isArray(v))return false;
+ const x=v as Record<string,unknown>;
+ switch(x.type){
+  case 'string':return typeof x.value==='string';
+  case 'number':return typeof x.value==='number'&&Number.isFinite(x.value);
+  case 'boolean':return typeof x.value==='boolean';
+  case 'json':return !!x.value&&typeof x.value==='object'&&!Array.isArray(x.value);
+  case 'array':return Array.isArray(x.value);
+  case 'enum':return typeof x.value==='string'&&Array.isArray(x.options)&&x.options.every(y=>typeof y==='string')&&x.options.includes(x.value);
+  case 'secret':return typeof x.secretId==='string'&&x.secretId.length>0;
+  case 'file':return typeof x.fileId==='string'&&x.fileId.length>0;
+  case 'reference':return typeof x.expression==='string'&&x.expression.length>0;
+  default:return false;
+ }
 }
