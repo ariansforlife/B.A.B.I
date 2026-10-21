@@ -40,7 +40,7 @@ export async function executeRun({engine,script,deviceId,approved=false,timeoutM
   const collect=chunk=>{if(logs.join('').length<1024*1024)logs.push(String(chunk).slice(0,16384));};
   child.stdout?.on('data',collect);child.stderr?.on('data',collect);
   child.once('error',error=>{if(finished)return;finished=true;clearTimeout(timer);clearTimeout(hardTimer);signal?.removeEventListener('abort',onAbort);if(error.name==='AbortError')done(130);else reject(error);});
-  child.once('close',code=>{if(finished)return;finished=true;clearTimeout(timer);signal?.removeEventListener('abort',onAbort);done(timedOut?124:(code??1));});
+  child.once('close',code=>{if(finished)return;finished=true;clearTimeout(timer);clearTimeout(hardTimer);signal?.removeEventListener('abort',onAbort);done(timedOut?124:(code??1));});
  });
  const artifacts=[];for(const name of await readdir(directory)){if(name==='result.json'||! /\.(png|jpg|jpeg|webp|txt|json|html|xml)$/.test(name))continue;const file=join(directory,name);const info=await lstat(file);if(info.isFile()&&info.size<=25*1024*1024)artifacts.push({name:basename(name),bytes:info.size});}
  const result={id,engine,script,status:signal?.aborted?'cancelled':exitCode===0?'passed':exitCode===124?'timed_out':'failed',exitCode,startedAt,finishedAt:new Date().toISOString(),logs,artifacts};
