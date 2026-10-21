@@ -11,7 +11,7 @@ export function resolveScript(relativePath){
  return path;
 }
 export function commandFor(engine,scriptPath){
- if(engine==='playwright'&&scriptPath.endsWith('.spec.ts'))return {cmd:'pnpm',args:['exec','playwright','test',scriptPath]};
+ if(engine==='playwright'&&scriptPath.endsWith('.spec.ts'))return {cmd:'npm',args:['exec','--','playwright','test',scriptPath]};
  if(engine==='maestro'&&/\.ya?ml$/.test(scriptPath))return {cmd:'maestro',args:['test',scriptPath]};
  if(engine==='appium'&&scriptPath.endsWith('.spec.js'))return {cmd:'node',args:['--test',scriptPath]};
  if(engine==='appium')throw Error('Appium requires a .spec.js Node test using a configured WebDriver client');
