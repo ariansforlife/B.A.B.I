@@ -41,10 +41,10 @@ func workerHandler(db *pgxpool.Pool)http.HandlerFunc{
    var status string
    if err=tx.QueryRow(r.Context(),`SELECT status FROM execution_jobs WHERE id=$1::uuid FOR UPDATE`,v.ID).Scan(&status);err!=nil||status!="running"{http.Error(w,"job not running",409);return}
    failed:=false
-   for _,v:=range v.Results{
-    if v.TestCaseID==""||!contains([]string{"passed","failed","skipped"},v.Status)||v.DurationMs<0||!json.Valid(v.Logs)||!json.Valid(v.Artifacts){http.Error(w,"invalid result",400);return}
-    if v.Status=="failed"{failed=true}
-    if _,err=tx.Exec(r.Context(),`INSERT INTO execution_job_results(execution_id,test_case_id,status,duration_ms,logs,artifacts) VALUES($1::uuid,$2,$3,$4,$5,$6) ON CONFLICT(execution_id,test_case_id) DO UPDATE SET status=EXCLUDED.status,duration_ms=EXCLUDED.duration_ms,logs=EXCLUDED.logs,artifacts=EXCLUDED.artifacts`,v.ID,v.TestCaseID,v.Status,v.DurationMs,v.Logs,v.Artifacts);err!=nil{http.Error(w,"result write failed",500);return}
+   for _,result:=range v.Results{
+    if result.TestCaseID==""||!contains([]string{"passed","failed","skipped"},result.Status)||result.DurationMs<0||!json.Valid(result.Logs)||!json.Valid(result.Artifacts){http.Error(w,"invalid result",400);return}
+    if result.Status=="failed"{failed=true}
+    if _,err=tx.Exec(r.Context(),`INSERT INTO execution_job_results(execution_id,test_case_id,status,duration_ms,logs,artifacts) VALUES($1::uuid,$2,$3,$4,$5,$6) ON CONFLICT(execution_id,test_case_id) DO UPDATE SET status=EXCLUDED.status,duration_ms=EXCLUDED.duration_ms,logs=EXCLUDED.logs,artifacts=EXCLUDED.artifacts`,v.ID,result.TestCaseID,result.Status,result.DurationMs,result.Logs,result.Artifacts);err!=nil{http.Error(w,"result write failed",500);return}
    }
    state:="completed";if failed{state="failed"}
    if _,err=tx.Exec(r.Context(),`UPDATE execution_jobs SET status=$2,finished_at=now() WHERE id=$1::uuid`,v.ID,state);err!=nil{http.Error(w,"finish failed",500);return}
