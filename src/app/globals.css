@@ -78,3 +78,5 @@ pre{background:#0a1020;border:1px solid #222d43;border-radius:10px;padding:12px;
 @media(max-width:700px){.saas-layout .dashboard-grid,.saas-layout .activity-grid{grid-template-columns:1fr}.saas-layout .dashboard-grid>section:last-child{grid-column:auto}}
 
 .device-table-wrap{width:100%;overflow-x:auto;border:1px solid #293750;border-radius:12px}.device-table{width:100%;border-collapse:collapse;text-align:left;min-width:560px}.device-table th{background:#101a2e;color:#94a6c7;font-size:11px;text-transform:uppercase;letter-spacing:.08em;padding:14px}.device-table td{padding:15px 14px;border-top:1px solid #293750;font-size:13px}.device-table tr:hover td{background:#17243c}
+
+.master-layout{display:grid;grid-template-columns:minmax(180px,260px) minmax(0,1fr);gap:18px}.master-layout .sidebar-list{margin-top:0}.master-editor{min-width:0}.master-editor textarea{min-height:100px}@media(max-width:700px){.master-layout{grid-template-columns:1fr}}
