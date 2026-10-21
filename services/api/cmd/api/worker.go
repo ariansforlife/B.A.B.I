@@ -5,6 +5,8 @@ import (
  "net/http"
  "os"
  "crypto/subtle"
+ "errors"
+ "github.com/jackc/pgx/v5"
  "github.com/jackc/pgx/v5/pgxpool"
 )
 func workerHandler(db *pgxpool.Pool)http.HandlerFunc{
@@ -17,10 +19,19 @@ func workerHandler(db *pgxpool.Pool)http.HandlerFunc{
    tx,err:=db.Begin(r.Context());if err!=nil{http.Error(w,"db error",500);return};defer tx.Rollback(r.Context())
    var id,engine,device string;var snapshot []byte
    err=tx.QueryRow(r.Context(),`SELECT id::text,engine,COALESCE(device_id,''),snapshot FROM execution_jobs WHERE status='queued' ORDER BY created_at FOR UPDATE SKIP LOCKED LIMIT 1`).Scan(&id,&engine,&device,&snapshot)
-   if err!=nil{w.WriteHeader(http.StatusNoContent);return}
+   if errors.Is(err,pgx.ErrNoRows){w.WriteHeader(http.StatusNoContent);return};if err!=nil{http.Error(w,"claim failed",500);return}
    if _,err=tx.Exec(r.Context(),`UPDATE execution_jobs SET status='running',started_at=now() WHERE id=$1::uuid`,id);err!=nil{http.Error(w,"claim failed",500);return}
    if tx.Commit(r.Context())!=nil{http.Error(w,"commit failed",500);return}
    _=json.NewEncoder(w).Encode(map[string]any{"id":id,"engine":engine,"deviceId":device,"snapshot":json.RawMessage(snapshot)});return
+  }
+  if r.Method==http.MethodPost&&r.URL.Path=="/api/v1/worker/fail"{
+   var v struct{ID string `json:"id"`;Error string `json:"error"`}
+   r.Body=http.MaxBytesReader(w,r.Body,65536)
+   if json.NewDecoder(r.Body).Decode(&v)!=nil||v.ID==""{http.Error(w,"invalid failure",400);return}
+   tag,err:=db.Exec(r.Context(),`UPDATE execution_jobs SET status='failed',finished_at=now() WHERE id=$1::uuid AND status='running'`,v.ID)
+   if err!=nil{http.Error(w,"failure update failed",500);return}
+   if tag.RowsAffected()==0{http.Error(w,"job not running",409);return}
+   _=json.NewEncoder(w).Encode(map[string]string{"status":"failed"});return
   }
   if r.Method==http.MethodPost&&r.URL.Path=="/api/v1/worker/complete"{
    r.Body=http.MaxBytesReader(w,r.Body,2<<20)
