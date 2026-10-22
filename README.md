@@ -1,4 +1,39 @@
-# B.A.B.I — Build & Automation Based Integration
+# B.A.B.I — Simple Local Testing Workspace
+
+**MVP workflow:** Project → Test Case + Script → Run → Report.
+
+No Docker or database is required. Release, feature, scenario and advanced libraries are optional legacy data, not required for the MVP flow.
+
+## Quick start
+
+Requires Node.js 22+ and npm.
+
+```bash
+npm install
+npm run dev
+```
+
+In another terminal:
+
+```bash
+npm run runner
+```
+
+Open http://localhost:3000, enter the token printed by the runner, and connect. Create a project, create a test case, edit its script and run it. The workspace is stored in `babi-data/workspace.json`; scripts and reports live under `babi-data/`.
+
+The local runner is required for saving, device discovery and test execution. Playwright/Appium/Maestro still need their respective CLIs and platform dependencies installed before executing tests. External MCP support is developed separately and is optional.
+
+## Development checks
+
+```bash
+npm test
+npm run typecheck
+npm run build
+```
+
+---
+
+## Previous technical reference
 
 Local-first platform untuk mengelola **project, test case, script automation, device, dan hasil pengujian** web maupun mobile dalam satu dashboard. B.A.B.I menggunakan Next.js + React + TypeScript, Monaco Editor, dan local Node.js runner; tidak memerlukan database atau hosted backend untuk MVP.
 
