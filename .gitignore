@@ -1,6 +1,3 @@
 node_modules/
-.next/
-.env*
-!.env.example
 babi-data/
-*.tsbuildinfo
+.DS_Store
